@@ -56,3 +56,80 @@
 ------ Start Self-Play Iteration 11 ------
 [NEW TRAIN DATA COLLECTED]: Win: 10, Draw: 0, Lose: 10
 [TRAIN DATA SIZE]: 80000
+[EVALUATION RESULT]: currrent_win0, last_win20, draw0; win_rate=0.000
+[REJECT NEW MODEL]
+------ Start Self-Play Iteration 12 ------
+[NEW TRAIN DATA COLLECTED]: Win: 10, Draw: 0, Lose: 10
+[TRAIN DATA SIZE]: 80000
+[EVALUATION RESULT]: currrent_win0, last_win20, draw0; win_rate=0.000
+[REJECT NEW MODEL]
+------ Start Self-Play Iteration 13 ------
+[NEW TRAIN DATA COLLECTED]: Win: 7, Draw: 0, Lose: 13
+[TRAIN DATA SIZE]: 80000
+[EVALUATION RESULT]: currrent_win0, last_win20, draw0; win_rate=0.000
+[REJECT NEW MODEL]
+------ Start Self-Play Iteration 14 ------
+[NEW TRAIN DATA COLLECTED]: Win: 6, Draw: 2, Lose: 12
+[TRAIN DATA SIZE]: 80000
+[EVALUATION RESULT]: currrent_win10, last_win10, draw0; win_rate=0.500
+[REJECT NEW MODEL]
+------ Start Self-Play Iteration 15 ------
+[NEW TRAIN DATA COLLECTED]: Win: 6, Draw: 1, Lose: 13
+[TRAIN DATA SIZE]: 80000
+[EVALUATION RESULT]: currrent_win10, last_win10, draw0; win_rate=0.500
+[REJECT NEW MODEL]
+------ Start Self-Play Iteration 16 ------
+[NEW TRAIN DATA COLLECTED]: Win: 9, Draw: 2, Lose: 9
+[TRAIN DATA SIZE]: 80000
+[EVALUATION RESULT]: currrent_win10, last_win10, draw0; win_rate=0.500
+[REJECT NEW MODEL]
+------ Start Self-Play Iteration 17 ------
+[NEW TRAIN DATA COLLECTED]: Win: 6, Draw: 2, Lose: 12
+[TRAIN DATA SIZE]: 80000
+[EVALUATION RESULT]: currrent_win0, last_win20, draw0; win_rate=0.000
+[REJECT NEW MODEL]
+------ Start Self-Play Iteration 18 ------
+[NEW TRAIN DATA COLLECTED]: Win: 13, Draw: 0, Lose: 7
+[TRAIN DATA SIZE]: 80000
+[EVALUATION RESULT]: currrent_win10, last_win10, draw0; win_rate=0.500
+[REJECT NEW MODEL]
+------ Start Self-Play Iteration 19 ------
+[NEW TRAIN DATA COLLECTED]: Win: 15, Draw: 0, Lose: 5
+[TRAIN DATA SIZE]: 80000
+[EVALUATION RESULT]: currrent_win0, last_win20, draw0; win_rate=0.000
+[REJECT NEW MODEL]
+------ Start Self-Play Iteration 20 ------
+[NEW TRAIN DATA COLLECTED]: Win: 9, Draw: 0, Lose: 11
+[TRAIN DATA SIZE]: 80000
+------ Start Self-Play Iteration 1 ------
+[EVALUATION RESULT]: currrent_win0, last_win20, draw0; win_rate=0.000
+[REJECT NEW MODEL]
+------ Start Self-Play Iteration 21 ------
+[NEW TRAIN DATA COLLECTED]: Win: 8, Draw: 1, Lose: 11
+[TRAIN DATA SIZE]: 80000
+[EVALUATION RESULT]: currrent_win0, last_win20, draw0; win_rate=0.000
+[REJECT NEW MODEL]
+------ Start Self-Play Iteration 22 ------
+[NEW TRAIN DATA COLLECTED]: Win: 9, Draw: 0, Lose: 11
+[TRAIN DATA SIZE]: 80000
+------ Start Self-Play Iteration 1 ------
+[AlphaZeroParallel] Finished 20 episodes (14480 examples) in 1.163s, Win: 10, Draw: 0, Lose: 10
+[TRAIN DATA SIZE]: 14480
+[EVALUATION RESULT]: currrent_win10, last_win10, draw0; win_rate=0.500
+[REJECT NEW MODEL]
+------ Start Self-Play Iteration 23 ------
+[NEW TRAIN DATA COLLECTED]: Win: 9, Draw: 1, Lose: 10
+[TRAIN DATA SIZE]: 80000
+[EVALUATION RESULT]: currrent_win20, last_win0, draw0; win_rate=1.000
+[ACCEPT NEW MODEL]
+[EVALUATION RESULT]: win20, lose0, draw0
+[EVALUATION RESULT]:(first)  win10, lose0, draw0
+[EVALUATION RESULT]:(second) win10, lose0, draw0
+------ Start Self-Play Iteration 24 ------
+[NEW TRAIN DATA COLLECTED]: Win: 10, Draw: 0, Lose: 10
+[TRAIN DATA SIZE]: 80000
+[EVALUATION RESULT]: currrent_win0, last_win20, draw0; win_rate=0.000
+[REJECT NEW MODEL]
+------ Start Self-Play Iteration 25 ------
+[NEW TRAIN DATA COLLECTED]: Win: 6, Draw: 1, Lose: 13
+[TRAIN DATA SIZE]: 80000

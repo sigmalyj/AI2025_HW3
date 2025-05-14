@@ -103,28 +103,28 @@ def execute_episode_worker(
     # input()
     net = net_builder(device)
     opp_net = net.copy()
-    
+
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    
+
     logger.debug(f"[Worker {id}] Worker {id} is Ready (init_time={time.time()-st0:.3f})")
     try:
         while True:
             try:
                 command, args = conn.recv()
-                
+
                 if command == 'close':
-                    
+
                     return
-                
+
                 if command == 'run':
                     logger.debug(f"[Worker {id}] Start collect {int(args)} episodes")
                     st0 = time.time()
                     all_examples = []
                     all_episode_len = []
                     result_counter = ResultCounter()
-                    
+
                     for e in range(int(args)):
                         env = root_env.fork()
                         state = env.reset()
@@ -132,42 +132,65 @@ def execute_episode_worker(
                         mcts = puct_mcts.PUCTMCTS(env, net, config)
                         episode_step = 0
                         train_examples = []
-                        
+
                         while True:
                             player = env.current_player
                             # MCTS self-play
                             ########################
-                            # TODO: your code here #
-                            policy = None # compute policy with mcts
-                            
-                            symmetries = get_symmetries(state, policy) # rotate&flip the data&policy
+                            # Compute policy with MCTS
+                            policy = mcts.get_policy()  # 获取当前节点的策略
+
+                            # Rotate and flip the data & policy for data augmentation
+                            symmetries = get_symmetries(state, policy)
                             train_examples += [(x[0], x[1], player) for x in symmetries]
-                            
-                            pass # choose a action accroding to policy
-                            done = False # apply the action to env
+
+                            # Choose an action according to the policy
+                            action = np.random.choice(len(policy), p=policy)
+
+                            # Apply the action to the environment
+                            state, reward, done = env.step(action)
+
                             if done:
-                                pass # record all data
-                                # tips: use env.compute_canonical_form_obs to transform the observation into BLACK's perspective
-                            
-                            pass # update mcts (you can use get_subtree())
+                                # Record all data
+                                canonical_obs = env.compute_canonical_form_obs(
+                                    state, env.current_player
+                                )
+                                train_examples = [
+                                    (
+                                        obs,
+                                        pi,
+                                        reward if p == env.current_player else -reward,
+                                    )
+                                    for obs, pi, p in train_examples
+                                ]
+                                all_examples += train_examples
+                                all_episode_len.append(len(train_examples))
+                                result_counter.add(reward, 1)
+                                break
+
+                            # Update MCTS (use get_subtree to move to the next state)
+                            mcts = mcts.get_subtree(action)
+                            if mcts is None:
+                                mcts = puct_mcts.PUCTMCTS(env, net, config)
                             ########################
+
                     logger.debug(f"[Worker {id}] Finished {int(args)} episodes (length={all_episode_len}) in {time.time()-st0:.3f}s, {result_counter}")
                     conn.send((all_examples, result_counter))
-                    
+
                 if command == 'load_net':
                     file_name = str(args)
                     if not file_name or file_name == 'None':
                         file_name = 'best.pth.tar'
                     net.load_checkpoint(folder=checkpoint_path, filename=file_name)
                     logger.debug(f"[Worker {id}] Loaded net from {checkpoint_path}")
-                
+
                 if command == 'load_opp_net':
                     file_name = str(args)
                     if not file_name:
                         file_name = 'temp.pth.tar'
                     opp_net.load_checkpoint(folder=checkpoint_path, filename=file_name)
                     logger.debug(f"[Worker {id}] Loaded net from {checkpoint_path}")
-                
+
                 if command == 'pit_opp':
                     n_run = int(args)
                     logger.debug(f"[Worker {id}] Start evaluating for {int(args)} round")
@@ -176,7 +199,7 @@ def execute_episode_worker(
                     ret = multi_match(root_env.fork(), last_mcts_player, current_mcts_player, n_run, disable_tqdm=True)
                     logger.debug(f"[Worker {id}] Finished evaluating for {int(args)} round")
                     conn.send(ret)
-                
+
                 if command == 'pit_eval':
                     n_run = int(args)
                     logger.debug(f"[Worker {id}] Start evaluating for {int(args)} round")
@@ -185,8 +208,7 @@ def execute_episode_worker(
                     ret = multi_match(root_env.fork(), current_mcts_player, opponent, n_run, disable_tqdm=True)
                     logger.debug(f"[Worker {id}] Finished evaluating for {int(args)} round")
                     conn.send(ret)
-                    
-                    
+
             except Exception as e:
                 print(e)
                 traceback.print_exc()
@@ -479,8 +501,8 @@ if __name__ == "__main__":
     
     def net_builder(device=device):
         # Deep Neural Network
-        # net = MyNet(env.observation_size, env.action_space_size, model_config, device=device)
-        net = MLPNet(env.observation_size, env.action_space_size, model_config, device=device)
+        net = MyNet(env.observation_size, env.action_space_size, model_config, device=device)
+        # net = MLPNet(env.observation_size, env.action_space_size, model_config, device=device)
         net = ModelTrainer(env.observation_size, env.action_space_size, net, model_training_config)
         
         # Numpy Linear Model
