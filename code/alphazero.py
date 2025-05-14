@@ -62,7 +62,7 @@ class AlphaZero:
         self.mcts_config.with_noise = False
         self.mcts = None
         self.train_eamples_queue = []  # history of examples from args.numItersForTrainExamplesHistory latest iterations
-    
+
     def execute_episode(self):
         train_examples = []
         env = self.env.fork()
@@ -74,21 +74,36 @@ class AlphaZero:
             player = env.current_player
             # MCTS self-play
             ########################
-            # TODO: your code here #
-            policy = None # compute policy with mcts
-            
-            symmetries = get_symmetries(state, policy) # rotate&flip the data&policy
+            # Compute policy with MCTS
+            policy = mcts.get_policy()  # 获取当前节点的策略
+
+            # Rotate and flip the data & policy for data augmentation
+            symmetries = get_symmetries(state, policy)
             train_examples += [(x[0], x[1], player) for x in symmetries]
-            
-            pass # choose a action accroding to policy
-            done = False # apply the action to env
+
+            # Choose an action according to the policy
+            action = np.random.choice(len(policy), p=policy)
+
+            # Apply the action to the environment
+            state, reward, done = env.step(action)
+
             if done:
-                pass # record all data
-                # tips: use env.compute_canonical_form_obs to transform the observation into BLACK's perspective
-            
-            pass # update mcts (you can use get_subtree())
+                # Record all data
+                canonical_obs = env.compute_canonical_form_obs(
+                    state, env.current_player
+                )
+                train_examples = [
+                    (obs, pi, reward if p == env.current_player else -reward)
+                    for obs, pi, p in train_examples
+                ]
+                return train_examples
+
+            # Update MCTS (use get_subtree to move to the next state)
+            mcts = mcts.get_subtree(action)
+            if mcts is None:
+                mcts = puct_mcts.PUCTMCTS(env, self.net, config)
             ########################
-    
+
     def evaluate(self, show_log:bool=True):
         player = PUCTPlayer(self.mcts_config, self.net, deterministic=True)
         # baseline_player = AlphaBetaPlayer()
@@ -99,13 +114,13 @@ class AlphaZero:
             logger.info(f"[EVALUATION RESULT]:(first)  win{result[1][0]}, lose{result[1][1]}, draw{result[1][2]}")
             logger.info(f"[EVALUATION RESULT]:(second) win{result[2][0]}, lose{result[2][1]}, draw{result[2][2]}")
         return result
-    
+
     def learn(self):
         self.net.save_checkpoint(folder=self.config.checkpoint_path, filename='best.pth.tar')
         self.net.save_checkpoint(folder=self.config.checkpoint_path, filename=f'iter_{0:04d}.pth.tar')
         for iter in range(1, self.config.n_train_iter + 1):
             logger.info(f"------ Start Self-Play Iteration {iter} ------")
-            
+
             # collect new examples
             T = tqdm(range(self.config.n_match_train), desc="Self Play")
             cnt = ResultCounter()
@@ -114,37 +129,37 @@ class AlphaZero:
                 self.train_eamples_queue += episode
                 cnt.add(episode[0][-1], 1)
             logger.info(f"[NEW TRAIN DATA COLLECTED]: {str(cnt)}")
-            
+
             # pop old examples
             if len(self.train_eamples_queue) > self.config.max_queue_length:
                 self.train_eamples_queue = self.train_eamples_queue[-self.config.max_queue_length:]
-            
+
             # shuffle examples for training
             train_data = copy.copy(self.train_eamples_queue)
             shuffle(train_data)
             logger.info(f"[TRAIN DATA SIZE]: {len(train_data)}")
-            
+
             # save current net to last_net
             self.net.save_checkpoint(folder=self.config.checkpoint_path, filename='temp.pth.tar')
             self.net.save_checkpoint(folder=self.config.checkpoint_path, filename=f'iter_{iter:04d}.pth.tar')
             self.last_net.load_checkpoint(folder=self.config.checkpoint_path, filename='temp.pth.tar')
-            
+
             # train current net
             self.net.train(train_data)
-            
+
             # evaluate current net
             env = self.env.fork()
             env.reset()
-            
+
             last_mcts_player = PUCTPlayer(self.mcts_config, self.last_net, deterministic=True)
             current_mcts_player = PUCTPlayer(self.mcts_config, self.net, deterministic=True)
-            
+
             result = multi_match(self.env, last_mcts_player, current_mcts_player, self.config.n_match_update)[0]
             # win_rate = result[1] / sum(result)
             total_win_lose = result[0] + result[1]
             win_rate = result[1] / total_win_lose if total_win_lose > 0 else 1
             logger.info(f"[EVALUATION RESULT]: currrent_win{result[1]}, last_win{result[0]}, draw{result[2]}; win_rate={win_rate:.3f}")
-            
+
             if win_rate > self.config.update_threshold:
                 self.net.save_checkpoint(folder=self.config.checkpoint_path, filename='best.pth.tar')
                 logger.info(f"[ACCEPT NEW MODEL]")
@@ -155,11 +170,11 @@ class AlphaZero:
 
     def round_robin(self, K:int=20, window_size:int=None):
         assert K % 2 == 0
-        
+
         all_checkpoints = [i for i in os.listdir(self.config.checkpoint_path) if i.endswith('.pth.tar') and i.startswith('iter_')]
         all_checkpoints.sort(key=lambda x:int(x.split('_')[-1].split('.')[0]))
         print("Test all checkpoints:", all_checkpoints)
-        
+
         results = []
         if window_size is None:
             window_size = len(all_checkpoints)
@@ -171,10 +186,10 @@ class AlphaZero:
         for ckpt_i, ckpt_j in tqdm(tasks, desc="Evaluate all checkpoints with each other"):
             self.net.load_checkpoint(folder=self.config.checkpoint_path, filename=ckpt_i)
             self.last_net.load_checkpoint(folder=self.config.checkpoint_path, filename=ckpt_j)
-            
+
             current_mcts_player = PUCTPlayer(self.mcts_config, self.net, deterministic=True)
             last_mcts_player = PUCTPlayer(self.mcts_config, self.last_net, deterministic=True)
-            
+
             result, first_result, second_result = \
                 multi_match(self.env, current_mcts_player, last_mcts_player, K)
             results.append({

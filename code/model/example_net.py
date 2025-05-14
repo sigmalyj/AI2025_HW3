@@ -62,17 +62,40 @@ class LinearModel(nn.Module):
         return F.log_softmax(pi, dim=1), torch.tanh(v)
     
 class MyNet(nn.Module):
-    def __init__(self, observation_size:tuple[int, int], action_space_size:int, config:BaseNetConfig, device:torch.device='cpu'):
+    def __init__(self, observation_size: tuple[int, int], action_space_size: int, config: BaseNetConfig, device: torch.device = 'cpu'):
         super().__init__()
         self.config = config
         self.device = device
+
+        # Convolutional layers
+        self.conv1 = nn.Conv2d(1, config.num_channels, kernel_size=3, stride=1, padding=1)  # Conv layer 1
+        self.conv2 = nn.Conv2d(config.num_channels, config.num_channels, kernel_size=3, stride=1, padding=1)  # Conv layer 2
+
+        # Fully connected layers
+        conv_output_size = observation_size[0] * observation_size[1] * config.num_channels
+        self.fc1 = nn.Linear(conv_output_size, config.linear_hidden[0])
+        self.fc2 = nn.Linear(config.linear_hidden[0], config.linear_hidden[1])
+
+        # Policy and value heads
+        self.policy_head = nn.Linear(config.linear_hidden[1], action_space_size)
+        self.value_head = nn.Linear(config.linear_hidden[1], 1)
+
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(config.dropout)
         self.to(device)
-        ########################
-        # TODO: your code here #
-        ########################
-    
+
     def forward(self, s: torch.Tensor):
-        ########################
-        # TODO: your code here #
-        return None, None
-        ########################
+        # Input: s (batch_size x board_x x board_y)
+        s = s.unsqueeze(1)  # Add channel dimension: batch_size x 1 x board_x x board_y
+        s = self.relu(self.conv1(s))  # Apply first convolutional layer
+        s = self.relu(self.conv2(s))  # Apply second convolutional layer
+
+        s = s.view(s.size(0), -1)  # Flatten the tensor for fully connected layers
+        s = self.relu(self.fc1(s))
+        s = self.dropout(s)
+        s = self.relu(self.fc2(s))
+
+        pi = self.policy_head(s)  # Policy head
+        v = self.value_head(s)  # Value head
+
+        return F.log_softmax(pi, dim=1), torch.tanh(v)
