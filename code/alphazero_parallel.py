@@ -526,7 +526,7 @@ if __name__ == "__main__":
     file_handler.setLevel(logging.INFO)
     logger.addHandler(file_handler)
 
-    N_WORKER = 10 # increase this as large as your device can afford
+    N_WORKER = 25 # increase this as large as your device can afford
     alphazero = AlphaZeroParallel(env, net_builder, config, N_WORKER, seed=MASTER_SEED)
     alphazero.learn()
 
