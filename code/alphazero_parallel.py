@@ -501,8 +501,8 @@ if __name__ == "__main__":
     
     def net_builder(device=device):
         # Deep Neural Network
-        # net = MyNet(env.observation_size, env.action_space_size, model_config, device=device)
-        net = MLPNet(env.observation_size, env.action_space_size, model_config, device=device)
+        net = MyNet(env.observation_size, env.action_space_size, model_config, device=device)
+        # net = MLPNet(env.observation_size, env.action_space_size, model_config, device=device)
         net = ModelTrainer(env.observation_size, env.action_space_size, net, model_training_config)
         
         # Numpy Linear Model
