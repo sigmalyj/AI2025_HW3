@@ -25,8 +25,7 @@ results = []
 
 # 正则表达式匹配每轮的迭代和训练结果
 iteration_pattern = r"------ Start Self-Play Iteration (\d+) ------"
-training_result_pattern = r"\[AlphaZeroParallel\] Finished .* Win: (\d+), Draw: (\d+), Lose: (\d+)"
-
+training_result_pattern = r"\[EVALUATION RESULT\]: win(\d+), lose(\d+), draw(\d+)"
 # 读取日志文件
 with open(log_file_path, "r", encoding="utf-8") as log_file:
     lines = log_file.readlines()
