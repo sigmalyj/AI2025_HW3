@@ -217,21 +217,17 @@ class AlphaZero:
 if __name__ == "__main__":
     from env import *
     import torch
-    
+
     MASTER_SEED = 0
     random.seed(MASTER_SEED)
     np.random.seed(MASTER_SEED)
     torch.manual_seed(MASTER_SEED)
-    
+
     logger.setLevel(logging.INFO)
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     logger.addHandler(console_handler)
-    file_handler = logging.FileHandler("log.txt")
-    file_handler.setLevel(logging.INFO)
-    logger.addHandler(file_handler)
-    
-    # MLP Config
+
     config = AlphaZeroConfig(
         n_train_iter=30,
         n_match_train=20,
@@ -239,11 +235,13 @@ if __name__ == "__main__":
         n_match_eval=20,
         max_queue_length=80000,
         update_threshold=0.501,
-        n_search=240, 
-        temperature=1.0, 
+        n_search=240,
+        temperature=1.0,
         C=1.0,
-        checkpoint_path="checkpoint/mlp_7x7_3layers_exfeat"
-    )
+        checkpoint_path="checkpoint/mynet"  # MyNet Config
+        # checkpoint_path="checkpoint/mlp_7x7_3layers_exfeat"  # MLP Config    
+        )
+
     model_training_config = ModelTrainingConfig(
         epochs=15,
         batch_size=128,
@@ -253,8 +251,7 @@ if __name__ == "__main__":
     model_config = BaseNetConfig(
         linear_hidden=[256, 128]
     )
-    
-    
+
     # Linear Config
     # config = AlphaZeroConfig(
     #     n_train_iter=30,
@@ -263,8 +260,8 @@ if __name__ == "__main__":
     #     n_match_eval=10,
     #     max_queue_length=80000,
     #     update_threshold=0.001,
-    #     n_search=240, 
-    #     temperature=1.0, 
+    #     n_search=240,
+    #     temperature=1.0,
     #     C=1.0,
     #     checkpoint_path="checkpoint/linear_7x7_exfeat_norm_1"
     # )
@@ -275,26 +272,40 @@ if __name__ == "__main__":
     #     weight_decay=0.001
     # )
     # model_config = BaseNetConfig()
-    
+
     assert config.n_match_update % 2 == 0
     assert config.n_match_eval % 2 == 0
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    
+
     # env = GoGame(7, obs_mode="extra_feature") # "extra_feature" only compatible with NumpyLinearModel, LinearModel, MLPNet
     env = GoGame(7)
-    
+
     # Deep Neural Network
     # net = MyNet(env.observation_size, env.action_space_size, model_config, device=device)
     net = MLPNet(env.observation_size, env.action_space_size, model_config, device=device)
     net = ModelTrainer(env.observation_size, env.action_space_size, net, model_training_config)
-    
+
+    # 动态命名日志文件
+    net_type = "UnknownNet"  # 默认值
+    if "MyNet" in globals() and isinstance(net, MyNet):
+        net_type = "MyNet"
+    elif "MLPNet" in globals() and isinstance(net, MLPNet):
+        net_type = "MLPNet"
+    elif "LinearModel" in globals() and isinstance(net, LinearModel):
+        net_type = "LinearModel"
+
+    log_filename = f"log_{net_type}.txt"
+    file_handler = logging.FileHandler(log_filename)
+    file_handler.setLevel(logging.INFO)
+    logger.addHandler(file_handler)
+
     # Numpy Linear Model
     # net = NumpyLinearModel(env.observation_size, env.action_space_size, model_config, device=device)
     # net = NumpyLinearModelTrainer(env.observation_size, env.action_space_size, net, model_training_config)
-    
+
     alphazero = AlphaZero(env, net, config)
     alphazero.learn()
-    
+
     # Evaluate and calculate elo score of each checkpoint
     results = alphazero.round_robin(20, window_size=5) # increase window size if available
     match_data_path = os.path.join(config.checkpoint_path, "eval_results_temp.json")

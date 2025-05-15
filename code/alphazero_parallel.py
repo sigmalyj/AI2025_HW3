@@ -429,18 +429,17 @@ class AlphaZeroParallel:
 if __name__ == "__main__":
     from env import *
     import torch
-    
+
     MASTER_SEED = 0
     random.seed(MASTER_SEED)
     np.random.seed(MASTER_SEED)
     torch.manual_seed(MASTER_SEED)
-    
+
     logger.setLevel(logging.INFO)
-    file_handler = logging.FileHandler("log.txt")
-    file_handler.setLevel(logging.INFO)
-    logger.addHandler(file_handler)
-    
-    # MLP Config
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    logger.addHandler(console_handler)
+
     config = AlphaZeroConfig(
         n_train_iter=30,
         n_match_train=20,
@@ -448,10 +447,11 @@ if __name__ == "__main__":
         n_match_eval=20,
         max_queue_length=80000,
         update_threshold=0.501,
-        n_search=240, 
-        temperature=1.0, 
+        n_search=240,
+        temperature=1.0,
         C=1.0,
-        checkpoint_path="checkpoint/mlp_7x7_3layers_exfeat_1"
+        checkpoint_path="checkpoint/mynet",  # MyNet Config
+        # checkpoint_path="checkpoint/mlp_7x7_3layers_exfeat"  # MLP Config
     )
     model_training_config = ModelTrainingConfig(
         epochs=10,
@@ -462,7 +462,7 @@ if __name__ == "__main__":
     model_config = BaseNetConfig(
         linear_hidden=[256, 128]
     )
-    
+
     # Linear Config
     # config = AlphaZeroConfig(
     #     n_train_iter=30,
@@ -471,8 +471,8 @@ if __name__ == "__main__":
     #     n_match_eval=10,
     #     max_queue_length=80000,
     #     update_threshold=0.001,
-    #     n_search=240, 
-    #     temperature=1.0, 
+    #     n_search=240,
+    #     temperature=1.0,
     #     C=1.0,
     #     checkpoint_path="checkpoint/linear_7x7_exfeat_norm_1"
     # )
@@ -483,14 +483,14 @@ if __name__ == "__main__":
     #     weight_decay=0.001
     # )
     # model_config = BaseNetConfig()
-    
+
     assert config.n_match_update % 2 == 0
     assert config.n_match_eval % 2 == 0
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    
+
     # env = GoGame(7, obs_mode="extra_feature") # "extra_feature" only compatible with NumpyLinearModel, LinearModel, MLPNet
     env = GoGame(7)
-    
+
     def base_function(X: np.ndarray) -> np.ndarray:
         ret = []
         for b in range(X.shape[0]):
@@ -498,28 +498,44 @@ if __name__ == "__main__":
             x_square = x ** 2
             ret.append(np.concatenate(([1], x, x_square)))
         return np.stack(ret, axis=0)
-    
+
     def net_builder(device=device):
         # Deep Neural Network
         net = MyNet(env.observation_size, env.action_space_size, model_config, device=device)
         # net = MLPNet(env.observation_size, env.action_space_size, model_config, device=device)
         net = ModelTrainer(env.observation_size, env.action_space_size, net, model_training_config)
-        
+
         # Numpy Linear Model
         # net = NumpyLinearModel(env.observation_size, env.action_space_size, model_config, device=device, base_function=None)
         # net = NumpyLinearModelTrainer(env.observation_size, env.action_space_size, net, model_training_config)
         return net
-        
+
+    # 动态获取网络类型
+    temp_net = net_builder()  # 调用 net_builder 获取网络实例
+    net_type = "UnknownNet"  # 默认值
+    if isinstance(temp_net.net, MyNet):
+        net_type = "MyNet"
+    elif isinstance(temp_net.net, MLPNet):
+        net_type = "MLPNet"
+    elif isinstance(temp_net.net, LinearModel):
+        net_type = "LinearModel"
+
+    # 设置日志文件名
+    log_filename = f"log_{net_type}.txt"
+    file_handler = logging.FileHandler(log_filename)
+    file_handler.setLevel(logging.INFO)
+    logger.addHandler(file_handler)
+
     N_WORKER = 10 # increase this as large as your device can afford
     alphazero = AlphaZeroParallel(env, net_builder, config, N_WORKER, seed=MASTER_SEED)
     alphazero.learn()
-    
+
     # Evaluate and calculate elo score of each checkpoint
     results = alphazero.round_robin(20, window_size=5) # increase window size if available
     match_data_path = os.path.join(config.checkpoint_path, "eval_results_temp.json")
     with open(match_data_path, "w") as f:
         json.dump(results, f)
     draw_elo_curve(match_data_path, os.path.join(config.checkpoint_path, "elo.png"))
-    
-    # Shut down 
+
+    # Shut down
     alphazero.close()

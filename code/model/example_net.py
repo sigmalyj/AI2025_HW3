@@ -67,9 +67,13 @@ class MyNet(nn.Module):
         self.config = config
         self.device = device
 
-        # Convolutional layers
+        # Convolutional layers with Batch Normalization and Residual Connections
         self.conv1 = nn.Conv2d(1, config.num_channels, kernel_size=3, stride=1, padding=1)  # Conv layer 1
+        self.bn1 = nn.BatchNorm2d(config.num_channels)  # Batch Normalization 1
         self.conv2 = nn.Conv2d(config.num_channels, config.num_channels, kernel_size=3, stride=1, padding=1)  # Conv layer 2
+        self.bn2 = nn.BatchNorm2d(config.num_channels)  # Batch Normalization 2
+        self.conv3 = nn.Conv2d(config.num_channels, config.num_channels, kernel_size=3, stride=1, padding=1)  # Conv layer 3
+        self.bn3 = nn.BatchNorm2d(config.num_channels)  # Batch Normalization 3
 
         # Fully connected layers
         conv_output_size = observation_size[0] * observation_size[1] * config.num_channels
@@ -87,14 +91,23 @@ class MyNet(nn.Module):
     def forward(self, s: torch.Tensor):
         # Input: s (batch_size x board_x x board_y)
         s = s.unsqueeze(1)  # Add channel dimension: batch_size x 1 x board_x x board_y
-        s = self.relu(self.conv1(s))  # Apply first convolutional layer
-        s = self.relu(self.conv2(s))  # Apply second convolutional layer
 
-        s = s.view(s.size(0), -1)  # Flatten the tensor for fully connected layers
+        # First convolutional block
+        s = self.relu(self.bn1(self.conv1(s)))
+
+        # Second convolutional block with residual connection
+        residual = s
+        s = self.relu(self.bn2(self.conv2(s)))
+        s = self.bn3(self.conv3(s)) + residual  # Residual connection
+        s = self.relu(s)
+
+        # Flatten the tensor for fully connected layers
+        s = s.view(s.size(0), -1)
         s = self.relu(self.fc1(s))
         s = self.dropout(s)
         s = self.relu(self.fc2(s))
 
+        # Policy and value heads
         pi = self.policy_head(s)  # Policy head
         v = self.value_head(s)  # Value head
 
