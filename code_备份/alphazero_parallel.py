@@ -441,6 +441,22 @@ if __name__ == "__main__":
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     logger.addHandler(console_handler)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    def net_builder(device=device):
+        # Deep Neural Network
+        net = MyNet(
+            env.observation_size, env.action_space_size, model_config, device=device
+        )
+        # net = MLPNet(env.observation_size, env.action_space_size, model_config, device=device)
+        net = ModelTrainer(
+            env.observation_size, env.action_space_size, net, model_training_config
+        )
+
+        # Numpy Linear Model
+        # net = NumpyLinearModel(env.observation_size, env.action_space_size, model_config, device=device, base_function=None)
+        # net = NumpyLinearModelTrainer(env.observation_size, env.action_space_size, net, model_training_config)
+        return net
 
     # 动态获取网络类型
     temp_net = net_builder()  # 调用 net_builder 获取网络实例
@@ -503,7 +519,6 @@ if __name__ == "__main__":
 
     assert config.n_match_update % 2 == 0
     assert config.n_match_eval % 2 == 0
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # env = GoGame(7, obs_mode="extra_feature") # "extra_feature" only compatible with NumpyLinearModel, LinearModel, MLPNet
     env = GoGame(7)
@@ -515,17 +530,6 @@ if __name__ == "__main__":
             x_square = x ** 2
             ret.append(np.concatenate(([1], x, x_square)))
         return np.stack(ret, axis=0)
-
-    def net_builder(device=device):
-        # Deep Neural Network
-        net = MyNet(env.observation_size, env.action_space_size, model_config, device=device)
-        # net = MLPNet(env.observation_size, env.action_space_size, model_config, device=device)
-        net = ModelTrainer(env.observation_size, env.action_space_size, net, model_training_config)
-
-        # Numpy Linear Model
-        # net = NumpyLinearModel(env.observation_size, env.action_space_size, model_config, device=device, base_function=None)
-        # net = NumpyLinearModelTrainer(env.observation_size, env.action_space_size, net, model_training_config)
-        return net
 
     from datetime import datetime  # 导入 datetime 模块
 
