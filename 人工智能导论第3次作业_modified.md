@@ -87,7 +87,11 @@ $$
 
 4.
 
+不一致。
 
+1. 当优化器为带动量的优化器时，原batch的动量更新基于单次梯度g，而梯度更新后动量更新基于两次小batch的累计梯度 g_1 + g_2，对称动量状态便宜，参数更新方向不同
+
+2. 此外，当模型当中存在Batch Normalization层时，原先大batch的BN统计量为$\mu_B, \sigma_B^2$，而两次小batch的统计量分别为 $\mu_{B/2}^{(1)}，(\sigma_{B/2}^{(1)})^2$和$\mu_{B/2}^{(2)}，(\sigma_{B/2}^{(2)})^2$，由于 $\mu_B \ne 1/2(\mu_{B/2}^{(1)} + \mu_{B/2}^{(2)})$，前向传播的输出不同，导致梯度计算存在偏差
 
 5.
 
@@ -165,18 +169,19 @@ q_3 k_1^T > q_3 k_2^T \quad \text{且} \quad q_3 k_1^T > q_3 k_3^T
 $$
 已知 $ k_1 = [0, 1, -1, 0]^T $，$ k_2 = [1, 0, -1, 1]^T $，$ k_3 = [0, -1, 0, -1]^T $。  
 
-选择 $ q_3 = [1, 0, 0, 0] $（满足 $ \|q_3\|_2 = 1 $）：  
-• $ q_3 k_1^T = 1 \times 0 + 0 \times 1 + 0 \times (-1) + 0 \times 0 = 0 $  
+选择 $ q_3 = [1, 0, 0, 0] $（满足 $ \|q_3\|_2 = 1 $）： 
 
-• $ q_3 k_2^T = 1 \times 1 + 0 \times 0 + 0 \times (-1) + 0 \times 1 = 1 $  
+- $q_3 k_1^T = 1 \times 0 + 0 \times 1 + 0 \times (-1) + 0 \times 0 = 0 $  
 
-• $ q_3 k_3^T = 1 \times 0 + 0 \times (-1) + 0 \times 0 + 0 \times (-1) = 0 $  
+- $ q_3 k_2^T = 1 \times 1 + 0 \times 0 + 0 \times (-1) + 0 \times 1 = 1 $  
 
+- $ q_3 k_3^T = 1 \times 0 + 0 \times (-1) + 0 \times 0 + 0 \times (-1) = 0 $  
 
-此时 $ q_3 k_2^T $ 最大，但题目要求 $ q_3 $ 与 $ k_1 $ 的权重最大，因此需调整。  
-修正方案：  
-选择 $ q_3 = [0, 1, 0, 0] $：  
-• $ q_3 k_1^T = 1 $（最大），$ q_3 k_2^T = 0 $，$ q_3 k_3^T = -1 $。  
+此时 $ q_3 k_2^T $ 最大，但题目要求 $ q_3 $ 与 $ k_1 $ 的权重最大，因此需调整。 
+修正方案： 
+选择 $ q_3 = [0, 1, 0, 0] $： 
+
+- $q_3 k_1^T = 1 $（最大），$ q_3 k_2^T = 0 $，$ q_3 k_3^T = -1 $。  
 
 满足 $ q_3 k_1^T > q_3 k_2^T $ 且 $ q_3 k_1^T > q_3 k_3^T $，且 $ \|q_3\|_2 = 1 $。  
 
@@ -185,7 +190,7 @@ $$
 q_3 = [0, 1, 0, 0]
 $$
 
-（2）$ y_3 $ 的表达式  
+（2）$ y_3 $ 的表达式 
 计算注意力权重（$ d = 4 $，$ \sqrt{d} = 2 $）：  
 $$
 \text{Softmax输入} = \frac{q_3 K^T}{2} = \frac{[0, 1, 0, 0] K}{2} = \frac{[1, 0, -1]}{2}
@@ -203,93 +208,196 @@ $$
 y_3 = \frac{e^{0.5}}{e^{0.5} + 1 + e^{-0.5}} v_1 + \frac{1}{e^{0.5} + 1 + e^{-0.5}} v_2 + \frac{e^{-0.5}}{e^{0.5} + 1 + e^{-0.5}} v_3
 $$
 
+3.
+问题重述
+
+我们需要解决的问题是基于给定的多头自注意力机制设置，找到一个满足特定条件的query向量 $ q_4 $，并计算对应的输出 $ y_4 $。具体条件如下：
+
+1. 多头自注意力设置：
+   • 假设query、key、value向量的前两维和后两维分别作为两个自注意力头（Head 1和Head 2）的特征向量。
+
+   • 即：
+
+     ◦ Head 1: 使用前两维 $ q^{(1)} = q_{[1:2]} $, $ k^{(1)} = k_{[1:2]} $, $ v^{(1)} = v_{[1:2]} $
+
+     ◦ Head 2: 使用后两维 $ q^{(2)} = q_{[3:4]} $, $ k^{(2)} = k_{[3:4]} $, $ v^{(2)} = v_{[3:4]} $
+
+
+2. 条件：
+   • $ q_4 $ 的2范数不超过1：$ \|q_4\|_2 \leq 1 $
+
+   • 在Head 1中，$ q_4 $ 与第二个token（“喜欢”）的key $ k_2 $ 的自注意力权重最大（相比其他token）。
+
+   • 在Head 2中，$ q_4 $ 与第四个token（“He”）的key $ k_4 $ 的自注意力权重最大（相比其他token）。
+
+
+3. 输出：
+   • 找到满足条件的 $ q_4 $ 的一个取值。
+
+   • 写出此时 $ y_4 $ 的表达式。
+
+
+解决步骤
+
+1. 自注意力权重计算
+自注意力权重的计算公式为：
+$$ \text{AttentionWeight}(q, k_i) = \frac{\exp(q \cdot k_i)}{\sum_j \exp(q \cdot k_j)} $$
+
+为了使 $ q $ 对某个 $ k_i $ 的注意力权重最大，需要 $ q \cdot k_i $ 最大（因为softmax是单调的）。
+
+2. Head 1的条件
+在Head 1（前两维）中，$ q_4^{(1)} $ 需要与 $ k_2^{(1)} $ 的点积最大：
+$$ q_4^{(1)} \cdot k_2^{(1)} > q_4^{(1)} \cdot k_j^{(1)} \quad \forall j \neq 2 $$
+
+为了实现这一点，可以设 $ q_4^{(1)} = k_2^{(1)} $，因为点积 $ k_2^{(1)} \cdot k_2^{(1)} $ 是最大的（假设其他 $ k_j^{(1)} $ 不与 $ k_2^{(1)} $ 完全一致）。
+
+3. Head 2的条件
+在Head 2（后两维）中，$ q_4^{(2)} $ 需要与 $ k_4^{(2)} $ 的点积最大：
+$$ q_4^{(2)} \cdot k_4^{(2)} > q_4^{(2)} \cdot k_j^{(2)} \quad \forall j \neq 4 $$
+
+类似地，可以设 $ q_4^{(2)} = k_4^{(2)} $。
+
+4. 构造 $ q_4 $
+因此，可以构造：
+$$ q_4 = \begin{bmatrix} q_4^{(1)} \\ q_4^{(2)} \end{bmatrix} = \begin{bmatrix} k_2^{(1)} \\ k_4^{(2)} \end{bmatrix} $$
+
+5. 2范数约束
+需要 $ \|q_4\|_2 \leq 1 $。假设 $ k_2^{(1)} $ 和 $ k_4^{(2)} $ 的2范数满足：
+$$ \|k_2^{(1)}\|_2^2 + \|k_4^{(2)}\|_2^2 \leq 1 $$
+
+如果 $ k_2^{(1)} $ 和 $ k_4^{(2)} $ 的2范数较大，可以对 $ q_4 $ 进行归一化：
+$$ q_4 = \frac{1}{\sqrt{\|k_2^{(1)}\|_2^2 + \|k_4^{(2)}\|_2^2}} \begin{bmatrix} k_2^{(1)} \\ k_4^{(2)} \end{bmatrix} $$
+
+6. $ y_4 $ 的计算
+多头自注意力的输出是各头输出的拼接（或加权和）。假设是拼接：
+$$ y_4 = \text{AttentionHead}_1(q_4, K, V) \oplus \text{AttentionHead}_2(q_4, K, V) $$
+
+其中：
+• $ \text{AttentionHead}_1(q_4, K, V) = \sum_j \alpha_j^{(1)} v_j^{(1)} $，其中 $ \alpha_j^{(1)} $ 是Head 1的注意力权重。
+
+  • 根据条件，$ \alpha_2^{(1)} $ 最大（接近1，其他接近0），因此 $ \text{AttentionHead}_1 \approx v_2^{(1)} $。
+
+• $ \text{AttentionHead}_2(q_4, K, V) = \sum_j \alpha_j^{(2)} v_j^{(2)} $。
+
+  • 根据条件，$ \alpha_4^{(2)} $ 最大（接近1，其他接近0），因此 $ \text{AttentionHead}_2 \approx v_4^{(2)} $。
+
+
+因此：
+$$ y_4 \approx \begin{bmatrix} v_2^{(1)} \\ v_4^{(2)} \end{bmatrix} $$
+
+7. 具体取值
+假设：
+• $ k_2^{(1)} = (a, b)^T $
+
+• $ k_4^{(2)} = (c, d)^T $
+
+且 $ a^2 + b^2 + c^2 + d^2 \leq 1 $，则可以设：
+$$ q_4 = \begin{bmatrix} a \\ b \\ c \\ d \end{bmatrix} $$
+
+此时：
+• Head 1的注意力权重：
+
+  • $ q_4^{(1)} \cdot k_2^{(1)} = a^2 + b^2 $
+
+  • $ q_4^{(1)} \cdot k_j^{(1)} $ 对其他 $ j $ 会更小（除非其他 $ k_j^{(1)} $ 与 $ k_2^{(1)} $ 相同）。
+
+• Head 2的注意力权重：
+
+  • $ q_4^{(2)} \cdot k_4^{(2)} = c^2 + d^2 $
+
+  • $ q_4^{(2)} \cdot k_j^{(2)} $ 对其他 $ j $ 会更小（除非其他 $ k_j^{(2)} $ 与 $ k_4^{(2)} $ 相同）。
+
+
+输出：
+$$ y_4 = \begin{bmatrix} v_2^{(1)} \\ v_4^{(2)} \end{bmatrix} $$
+
+示例解答
+
+假设：
+• $ k_2^{(1)} = (1, 0)^T $
+
+• $ k_4^{(2)} = (0, -1)^T $（根据第2张图，$ k_4 = (-1, 0, -1, -1)^T $，因此 $ k_4^{(2)} = (-1, -1)^T $）
+
+• 需要 $ \|q_4\|_2 \leq 1 $，因此可以设：
+
+  • $ q_4^{(1)} = k_2^{(1)} = (1, 0)^T $
+
+  • $ q_4^{(2)} = k_4^{(2)} / \|k_4^{(2)}\|_2 = (-1, -1)^T / \sqrt{2} $
+
+  • 这样 $ \|q_4\|_2 = \sqrt{1 + 0 + 1/2 + 1/2} = \sqrt{2} > 1 $，需要调整。
+
+
+更合理的 $ q_4 $：
+设 $ q_4^{(1)} = \alpha k_2^{(1)} $, $ q_4^{(2)} = \beta k_4^{(2)} $，且 $ \alpha^2 \|k_2^{(1)}\|_2^2 + \beta^2 \|k_4^{(2)}\|_2^2 \leq 1 $。
+
+假设 $ k_2^{(1)} = (1, 0)^T $, $ k_4^{(2)} = (-1, -1)^T $，则：
+$$ \alpha^2 \cdot 1 + \beta^2 \cdot 2 \leq 1 $$
+可以选 $ \alpha = 1/\sqrt{3} $, $ \beta = 1/\sqrt{3} $：
+$$ q_4 = \begin{bmatrix} 1/\sqrt{3} \\ 0 \\ -1/\sqrt{3} \\ -1/\sqrt{3} \end{bmatrix} $$
+此时 $ \|q_4\|_2 = \sqrt{1/3 + 0 + 1/3 + 1/3} = 1 $。
+
+$ y_4 $ 的表达式：
+$$ y_4 = \begin{bmatrix} v_2^{(1)} \\ v_4^{(2)} \end{bmatrix} $$
+即：
+$$ y_4 = \begin{bmatrix} v_{2,1} \\ v_{2,2} \\ v_{4,3} \\ v_{4,4} \end{bmatrix} $$
+
+最终答案
+
+满足条件的 $ q_4 $ 的一个取值为：
+$$ q_4 = \begin{bmatrix} \frac{1}{\sqrt{3}} \\ 0 \\ -\frac{1}{\sqrt{3}} \\ -\frac{1}{\sqrt{3}} \end{bmatrix} $$
+
+此时 $ y_4 $ 的表达式为：
+$$ y_4 = \begin{bmatrix} v_{2,1} \\ v_{2,2} \\ v_{4,3} \\ v_{4,4} \end{bmatrix} $$
+其中 $ v_{i,j} $ 是 $ v_i $ 的第 $ j $ 维分量。
+
+
+
+
+
+
 ### 2.3 感知机的收敛保证
 
-**题目复述**  
-题目研究感知机算法在二分类任务（标签为±1）中的收敛性保证。具体设定如下：  
-1. 数据集：$ D = \{(x, y) \mid x \in \mathbb{R}^d, \|x\| \leq 1, y \in \{-1, 1\}\} $。  
-2. 模型：参数 $ w \in \mathbb{R}^d $，预测函数 $ f(x) = \text{sign}(w^T x) $。  
-3. 感知机算法步骤（简化版）：  
-   • 初始化 $ w = 0 $。  
-
-   • 随机选取样本 $ (x, y) \in D $。  
-
-   • 若误分类（即 $ y \cdot w^T x \leq 0 $），更新权重：$ w \leftarrow w + y x $。  
-
-   • 重复直至所有样本分类正确。  
-
-
-附加条件：  
-存在一个理想权重 $ w^* \in \mathbb{R}^d $（满足 $ \|w^*\| = 1 $）和间隔 $ \gamma > 0 $，使得对所有样本 $ (x_i, y_i) \in D $，有：  
-$$
-y_i (w^*)^T x_i \geq \gamma.
-$$  
-（即数据可被 $ w^* $ 以间隔 $ \gamma $ 线性分离。）  
-
-待证明结论：  
-在上述条件下，感知机算法在收敛前最多触发 $ \frac{1}{\gamma^2} $ 次预测错误。  
-
----
-
-**证明过程**  
-
-**核心思路**  
-通过分析权重更新过程中 $ w $ 与 $ w^* $ 的夹角变化，证明错误次数存在上界。  
-
-**步骤1：定义误差次数的上界**  
 设算法在第 $ t $ 次更新时的权重为 $ w_t $，误分类样本为 $ (x_t, y_t) $。更新规则为：  
 $$
 w_{t+1} = w_t + y_t x_t.
-$$  
+$$
 
 目标：证明总错误次数 $ T \leq \frac{1}{\gamma^2} $。  
 
-**步骤2：考察 $ w_{t+1} $ 与 $ w^* $ 的关系**  
 利用理想权重 $ w^* $ 的性质（$ y_t (w^*)^T x_t \geq \gamma $），有：  
 $$
 (w^*)^T w_{t+1} = (w^*)^T w_t + y_t (w^*)^T x_t \geq (w^*)^T w_t + \gamma.
-$$  
+$$
 递推可得：  
 $$
 (w^*)^T w_T \geq T \gamma. \quad (1)
-$$  
+$$
 
-**步骤3：分析 $ \|w_{t+1}\|^2 $ 的增长**  
 由更新规则：  
 $$
 \|w_{t+1}\|^2 = \|w_t\|^2 + \|y_t x_t\|^2 + 2 y_t w_t^T x_t.
-$$  
+$$
 因 $ (x_t, y_t) $ 被误分类（$ y_t w_t^T x_t \leq 0 $）且 $ \|x_t\| \leq 1 $，故：  
 $$
 \|w_{t+1}\|^2 \leq \|w_t\|^2 + 1.
-$$  
+$$
 递推得：  
 $$
 \|w_T\|^2 \leq T. \quad (2)
-$$  
+$$
 
-**步骤4：结合不等式 (1) 和 (2)**  
 由 $ \|w^*\| = 1 $ 和柯西-施瓦茨不等式：  
 $$
 (w^*)^T w_T \leq \|w^*\| \cdot \|w_T\| = \|w_T\|.
-$$  
+$$
 结合 (1) 和 (2)：  
 $$
 T \gamma \leq \|w_T\| \leq \sqrt{T}.
-$$  
+$$
 两边平方得：  
 $$
 T \leq \frac{1}{\gamma^2}.
-$$  
-
----
-
-**结论**  
-感知机算法在存在间隔 $ \gamma $ 的线性可分数据下，最多经历 $ \frac{1}{\gamma^2} $ 次错误更新后收敛。  
-
-关键点：  
-1. 理想权重 $ w^* $ 的存在性保证了误差更新的方向性。  
-2. 权重模的增长速度（$ \|w\| $）和与 $ w^* $ 的夹角变化共同约束了错误次数。
+$$
 
 
 
@@ -297,21 +405,93 @@ $$
 
 1.
 
+MLP模型的AlphaZero算法训练过程当中对Random Player的胜率
+
+<img src="/Users/liyanjia/Desktop/人工智能导论/hw/AI2025_HW3/assets/log_MLP_curve_0515_2244.png" alt="log_MLP_curve_0515_2244" style="zoom:50%;" />
+
+MLP模型的AlphaZero算法训练过程当中的elo分数曲线图
+
+<img src="/Users/liyanjia/Desktop/人工智能导论/hw/AI2025_HW3/assets/MLPelo.png" alt="MLPelo" style="zoom:50%;" />
+
 
 
 2.
+
+网络结构图如图所示，其中紫色节点为输入层，黄色节点为残差连接操作，绿色节点为输出头处理。
+
+相比于MLP网络，MyNet的架构主要有以下两个方面的改进：
+
+1. 使用卷积层处理二维棋盘特征：网络使用三个连续的3×3卷积核处理棋盘状态，3×3的核尺寸能够有效捕获围棋中的局部特征，同时通过多层叠加可以获得更大的感受野。所有卷积层保持stride=1和padding=1的配置，确保7×7的棋盘空间分辨率始终不变，这对于需要精确位置信息的围棋决策至关重要。批归一化层的加入则缓解了深度网络训练中的梯度问题，使模型对初始化和学习率更鲁棒。
+2. 引入残差连接：在第二卷积块当中引入了残差连接。当处理7×7的小棋盘时，简单的堆叠卷积层可能导致特征过度压缩。残差结构允许原始特征信息直接绕过中间层传输，既保留了浅层网络捕获的基础模式，又使深层网络能学习更复杂的棋盘特征。
+
+
+
+​    
+
+```mermaid
+flowchart TD
+    %% 定义节点
+    Input[("Input(batchsize×n²)")] --> Unsqueeze["Unsqueeze(batchsize×n²)"]
+    
+    %% 第一卷积块
+    Unsqueeze --> Conv1["Conv2d(batchsize×1×n²)"]
+    Conv1 --> BN1["BatchNorm2d(batchsize×256×n²)"]
+    BN1 --> ReLU1["ReLU(batchsize×256×n²)"]
+    
+    %% 第二卷积块（带残差）
+    ReLU1 --> Conv2["Conv2d(batchsize×256×n²)"]
+    Conv2 --> BN2["BatchNorm2d(batchsize×256×n²)"]
+    BN2 --> ReLU2["ReLU(batchsize×256×n²)"]
+    ReLU2 --> Conv3["Conv2d(batchsize×256×n²)"]
+    Conv3 --> BN3["BatchNorm2d(batchsize×256×n²)"]
+    BN3 --> Add["Add(batchsize×256×n²)"]
+    ReLU1 --> Add
+    Add --> ReLU3["ReLU(batchsize×256×n²)"]
+    
+    %% 全连接部分
+    ReLU3 --> Flatten["Flatten(batchsize×256×n²)"]
+    Flatten --> FC1["Linear(batchsize×(H*W*256))"]
+    FC1 --> ReLU4["ReLU(batchsize×256)"]
+    ReLU4 --> Dropout["Dropout(batchsize×256)"]
+    Dropout --> FC2["Linear(batchsize×256)"]
+    FC2 --> ReLU5["ReLU(batchsize×128)"]
+    
+    %% 双输出头
+    ReLU5 --> PolicyHead["PolicyHead(batchsize×128)"]
+    PolicyHead --> LogSoftmax["LogSoftmax(batchsize×action_space)"]
+    ReLU5 --> ValueHead["ValueHead(batchsize×128)"]
+    ValueHead --> Tanh["Tanh(batchsize×1)"]
+    
+    %% 样式调整
+    style Input fill:#f9f,stroke:#333
+    style Add fill:#ff9,stroke:#333
+    style LogSoftmax fill:#9f9,stroke:#333
+    style Tanh fill:#9f9,stroke:#333
+```
 
 
 
 3.
 
+MyNet 模型的AlphaZero算法训练过程当中对Random Player的胜率
 
+<img src="/Users/liyanjia/Desktop/人工智能导论/hw/AI2025_HW3/assets/log_MyNet_curve_0515_2242.png" alt="log_MyNet_curve_0515_2242" style="zoom:50%;" />
+
+MyNet 模型的AlphaZero算法训练过程当中的elo分数曲线图
+
+<img src="/Users/liyanjia/Desktop/人工智能导论/hw/AI2025_HW3/assets/elo.png" alt="elo" style="zoom:50%;" />
 
 4.
 
+训练后的MLP模型和MyNet对弈，对局胜率为0%。这可能是因为MyNet的结构较为复杂，因此在训练数据量不足时，MyNet 的复杂结构可能无法充分学习有效的特征；也可能是因为MyNet训练的目标和对抗目标不一致，训练时的对手是Random Player而却使用了MLP进行对抗，在训练过程当中学习的策略不适用于MLP。
 
-
-
+```sh
+Player 1 (MLP_net) win: 30 (100.00%)
+Player 2 (My_net) win: 0 (0.00%)
+Draw: 0 (0.00%)
+Player 1 not lose: 30 (100.00%)
+Player 2 not lose: 0 (0.00%)
+```
 
 
 
@@ -321,7 +501,7 @@ $$
 
 1. 课件
 2. https://zh.wikipedia.org/wiki/%E4%BA%A4%E5%8F%89%E7%86%B5
-3. 
+3.  神经网络与深度学习，邱锡鹏
 
 ### 辅助工具
 
