@@ -119,7 +119,7 @@ if __name__ == '__main__':
     
     Mynet_net = MyNet(env.observation_size, env.action_space_size, Mynet_model_config, device=device)
     Mynet_net = ModelTrainer(env.observation_size, env.action_space_size, Mynet_net, ModelTrainingConfig())
-    Mynet_net.load_checkpoint("checkpoint/mynet_old", "best.pth.tar")
+    Mynet_net.load_checkpoint("checkpoint/mynet", "best.pth.tar")
     Mynet_puct_player = PUCTPlayer(Mynet_mcts_config, Mynet_net, deterministic=True)
     
     player1_name = "MLP_net"

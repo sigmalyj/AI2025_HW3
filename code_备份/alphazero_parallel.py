@@ -442,6 +442,22 @@ if __name__ == "__main__":
     console_handler.setLevel(logging.INFO)
     logger.addHandler(console_handler)
 
+    # 动态获取网络类型
+    temp_net = net_builder()  # 调用 net_builder 获取网络实例
+    net_type = "UnknownNet"  # 默认值
+    if isinstance(temp_net.net, MyNet):
+        net_type = "MyNet"
+    elif isinstance(temp_net.net, MLPNet):
+        net_type = "MLPNet"
+    elif isinstance(temp_net.net, LinearModel):
+        net_type = "LinearModel"
+
+    # 获取当前时间并格式化为字符串
+    current_time = datetime.now().strftime("%m%d_%H%M")  # 格式为 "MMDD_HHMM"
+    # 动态生成 checkpoint_path
+    checkpoint_path = f"checkpoint/{net_type}_{current_time}"
+    os.makedirs(checkpoint_path, exist_ok=True)  # 创建目录（如果不存在）
+
     config = AlphaZeroConfig(
         n_train_iter=30,
         n_match_train=20,
@@ -452,8 +468,7 @@ if __name__ == "__main__":
         n_search=240,
         temperature=1.0,
         C=1.0,
-        checkpoint_path="checkpoint/mynet",  # MyNet Config
-        # checkpoint_path="checkpoint/mlp_7x7_3layers_exfeat"  # MLP Config
+        checkpoint_path=checkpoint_path
     )
     model_training_config = ModelTrainingConfig(
         epochs=10,
@@ -513,20 +528,7 @@ if __name__ == "__main__":
         return net
 
     from datetime import datetime  # 导入 datetime 模块
-    
-    # 动态获取网络类型
-    temp_net = net_builder()  # 调用 net_builder 获取网络实例
-    net_type = "UnknownNet"  # 默认值
-    if isinstance(temp_net.net, MyNet):
-        net_type = "MyNet"
-    elif isinstance(temp_net.net, MLPNet):
-        net_type = "MLPNet"
-    elif isinstance(temp_net.net, LinearModel):
-        net_type = "LinearModel"
-    
-    # 获取当前时间并格式化为字符串
-    current_time = datetime.now().strftime("%m%d_%H%M")  # 格式为 "MMDD_HHMM"
-    
+
     # 设置日志文件名，添加时间信息
     log_filename = f"log_{net_type}_{current_time}.txt"
     file_handler = logging.FileHandler(log_filename, mode = 'w')
