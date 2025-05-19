@@ -1,0 +1,23 @@
+------ Start Self-Play Iteration 1 ------
+[AlphaZeroParallel] Finished 20 episodes (19800 examples) in 1.093s, Win: 0, Draw: 0, Lose: 20
+[TRAIN DATA SIZE]: 19800
+[AlphaZeroParallel] Start evaluating with last best model for 20 round
+[EVALUATION RESULT]: currrent_win20, last_win0, draw0; win_rate=1.000
+[ACCEPT NEW MODEL]
+[AlphaZeroParallel] Start evaluating with baseline for 20 round
+[EVALUATION RESULT]: win13, lose6, draw1
+[EVALUATION RESULT]:(first)  win7, lose2, draw1
+[EVALUATION RESULT]:(second) win6, lose4, draw0
+------ Finished Self-Play Iteration 1 in 202.317s ------
+
+------ Start Self-Play Iteration 2 ------
+[AlphaZeroParallel] Finished 20 episodes (19800 examples) in 1.302s, Win: 0, Draw: 0, Lose: 20
+[TRAIN DATA SIZE]: 39600
+[AlphaZeroParallel] Start evaluating with last best model for 20 round
+[EVALUATION RESULT]: currrent_win0, last_win20, draw0; win_rate=0.000
+[REJECT NEW MODEL]
+------ Finished Self-Play Iteration 2 in 169.265s ------
+
+------ Start Self-Play Iteration 3 ------
+[AlphaZeroParallel] Finished 20 episodes (19800 examples) in 1.317s, Win: 0, Draw: 0, Lose: 20
+[TRAIN DATA SIZE]: 59400

@@ -82,8 +82,9 @@ class AlphaZero:
             train_examples += [(x[0], x[1], player) for x in symmetries]
 
             # Choose an action according to the policy
-            action = np.random.choice(len(policy), p=policy)
-
+            # action = np.random.choice(len(policy), p=policy)  # 原随机采样代码
+            action = np.argmax(policy)  # 修改为选择概率最大的动作
+            
             # Apply the action to the environment
             state, reward, done = env.step(action)
 

@@ -67,48 +67,37 @@ class MyNet(nn.Module):
         self.config = config
         self.device = device
 
-        # Convolutional layers with Batch Normalization and Residual Connections
-        self.conv1 = nn.Conv2d(1, config.num_channels, kernel_size=3, stride=1, padding=1)  # Conv layer 1
-        self.bn1 = nn.BatchNorm2d(config.num_channels)  # Batch Normalization 1
-        self.conv2 = nn.Conv2d(config.num_channels, config.num_channels, kernel_size=3, stride=1, padding=1)  # Conv layer 2
-        self.bn2 = nn.BatchNorm2d(config.num_channels)  # Batch Normalization 2
-        self.conv3 = nn.Conv2d(config.num_channels, config.num_channels, kernel_size=3, stride=1, padding=1)  # Conv layer 3
-        self.bn3 = nn.BatchNorm2d(config.num_channels)  # Batch Normalization 3
+        # 卷积层
+        self.conv1 = nn.Conv2d(1, config.num_channels, kernel_size=3, stride=1, padding=1)  # 卷积层，提取局部特征
+        self.relu = nn.ReLU()
 
-        # Fully connected layers
-        conv_output_size = observation_size[0] * observation_size[1] * config.num_channels
-        self.fc1 = nn.Linear(conv_output_size, config.linear_hidden[0])
+        # 全连接层
+        input_dim = observation_size[0] * observation_size[1] * config.num_channels
+        self.fc1 = nn.Linear(input_dim, config.linear_hidden[0])
         self.fc2 = nn.Linear(config.linear_hidden[0], config.linear_hidden[1])
 
-        # Policy and value heads
+        # 策略头和价值头
         self.policy_head = nn.Linear(config.linear_hidden[1], action_space_size)
         self.value_head = nn.Linear(config.linear_hidden[1], 1)
 
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(config.dropout)
         self.to(device)
 
     def forward(self, s: torch.Tensor):
-        # Input: s (batch_size x board_x x board_y)
-        s = s.unsqueeze(1)  # Add channel dimension: batch_size x 1 x board_x x board_y
+        # 输入: s (batch_size x board_x x board_y)
+        s = s.unsqueeze(1)  # 添加通道维度: batch_size x 1 x board_x x board_y
 
-        # First convolutional block
-        s = self.relu(self.bn1(self.conv1(s)))
+        # 卷积层
+        s = self.relu(self.conv1(s))
 
-        # Second convolutional block with residual connection
-        residual = s
-        s = self.relu(self.bn2(self.conv2(s)))
-        s = self.bn3(self.conv3(s)) + residual  # Residual connection
-        s = self.relu(s)
-
-        # Flatten the tensor for fully connected layers
+        # 展平张量以输入全连接层
         s = s.view(s.size(0), -1)
+
+        # 全连接层
         s = self.relu(self.fc1(s))
-        s = self.dropout(s)
         s = self.relu(self.fc2(s))
 
-        # Policy and value heads
-        pi = self.policy_head(s)  # Policy head
-        v = self.value_head(s)  # Value head
+        # 策略头和价值头
+        pi = self.policy_head(s)  # 策略头
+        v = self.value_head(s)  # 价值头
 
         return F.log_softmax(pi, dim=1), torch.tanh(v)

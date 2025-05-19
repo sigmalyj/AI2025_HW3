@@ -291,12 +291,3 @@
 ------ Finished Self-Play Iteration 30 in 232.298s ------
 
 [round_robin] All done.
------- Start Self-Play Iteration 1 ------
-[AlphaZeroParallel] Finished 20 episodes (14180 examples) in 1.891s, Win: 8, Draw: 0, Lose: 12
-[TRAIN DATA SIZE]: 14180
------- Start Self-Play Iteration 1 ------
-[AlphaZeroParallel] Finished 20 episodes (14180 examples) in 1.766s, Win: 8, Draw: 0, Lose: 12
-[TRAIN DATA SIZE]: 14180
------- Start Self-Play Iteration 1 ------
-[AlphaZeroParallel] Finished 20 episodes (14180 examples) in 1.663s, Win: 8, Draw: 0, Lose: 12
-[TRAIN DATA SIZE]: 14180

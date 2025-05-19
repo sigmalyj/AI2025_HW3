@@ -145,7 +145,9 @@ def execute_episode_worker(
                             train_examples += [(x[0], x[1], player) for x in symmetries]
 
                             # Choose an action according to the policy
-                            action = np.random.choice(len(policy), p=policy)
+                            # action = np.random.choice(len(policy), p=policy)  # 原随机采样代码
+                            action = np.argmax(policy)  # 修改为选择概率最大的动作
+
 
                             # Apply the action to the environment
                             state, reward, done = env.step(action)
@@ -510,6 +512,8 @@ if __name__ == "__main__":
         # net = NumpyLinearModelTrainer(env.observation_size, env.action_space_size, net, model_training_config)
         return net
 
+    from datetime import datetime  # 导入 datetime 模块
+    
     # 动态获取网络类型
     temp_net = net_builder()  # 调用 net_builder 获取网络实例
     net_type = "UnknownNet"  # 默认值
@@ -519,14 +523,17 @@ if __name__ == "__main__":
         net_type = "MLPNet"
     elif isinstance(temp_net.net, LinearModel):
         net_type = "LinearModel"
-
-    # 设置日志文件名
-    log_filename = f"log_{net_type}.txt"
-    file_handler = logging.FileHandler(log_filename)
+    
+    # 获取当前时间并格式化为字符串
+    current_time = datetime.now().strftime("%m%d_%H%M")  # 格式为 "MMDD_HHMM"
+    
+    # 设置日志文件名，添加时间信息
+    log_filename = f"log_{net_type}_{current_time}.txt"
+    file_handler = logging.FileHandler(log_filename, mode = 'w')
     file_handler.setLevel(logging.INFO)
-    logger.addHandler(file_handler)
+    logger.addHandler(file_handler)    
 
-    N_WORKER = 25 # increase this as large as your device can afford
+    N_WORKER = 10 # increase this as large as your device can afford
     alphazero = AlphaZeroParallel(env, net_builder, config, N_WORKER, seed=MASTER_SEED)
     alphazero.learn()
 
