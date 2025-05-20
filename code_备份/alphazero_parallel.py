@@ -7,6 +7,8 @@ from model.linear_model_trainer import NumpyLinearModelTrainer
 from model.example_net import *
 from mcts import puct_mcts
 from draw_elo import draw as draw_elo_curve
+from datetime import datetime  # 导入 datetime 模块
+
 
 import torch
 import multiprocessing, os, time, sys, json
@@ -145,8 +147,8 @@ def execute_episode_worker(
                             train_examples += [(x[0], x[1], player) for x in symmetries]
 
                             # Choose an action according to the policy
-                            # action = np.random.choice(len(policy), p=policy)  # 原随机采样代码
-                            action = np.argmax(policy)  # 修改为选择概率最大的动作
+                            action = np.random.choice(len(policy), p=policy)  # 原随机采样代码
+                            # action = np.argmax(policy)  # 修改为选择概率最大的动作
 
 
                             # Apply the action to the environment
@@ -441,37 +443,11 @@ if __name__ == "__main__":
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     logger.addHandler(console_handler)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    def net_builder(device=device):
-        # Deep Neural Network
-        net = MyNet(
-            env.observation_size, env.action_space_size, model_config, device=device
-        )
-        # net = MLPNet(env.observation_size, env.action_space_size, model_config, device=device)
-        net = ModelTrainer(
-            env.observation_size, env.action_space_size, net, model_training_config
-        )
-
-        # Numpy Linear Model
-        # net = NumpyLinearModel(env.observation_size, env.action_space_size, model_config, device=device, base_function=None)
-        # net = NumpyLinearModelTrainer(env.observation_size, env.action_space_size, net, model_training_config)
-        return net
-
-    # 动态获取网络类型
-    temp_net = net_builder()  # 调用 net_builder 获取网络实例
-    net_type = "UnknownNet"  # 默认值
-    if isinstance(temp_net.net, MyNet):
-        net_type = "MyNet"
-    elif isinstance(temp_net.net, MLPNet):
-        net_type = "MLPNet"
-    elif isinstance(temp_net.net, LinearModel):
-        net_type = "LinearModel"
 
     # 获取当前时间并格式化为字符串
     current_time = datetime.now().strftime("%m%d_%H%M")  # 格式为 "MMDD_HHMM"
     # 动态生成 checkpoint_path
-    checkpoint_path = f"checkpoint/{net_type}_{current_time}"
+    checkpoint_path = f"checkpoint/net_{current_time}"
     os.makedirs(checkpoint_path, exist_ok=True)  # 创建目录（如果不存在）
 
     config = AlphaZeroConfig(
@@ -517,6 +493,7 @@ if __name__ == "__main__":
     # )
     # model_config = BaseNetConfig()
 
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     assert config.n_match_update % 2 == 0
     assert config.n_match_eval % 2 == 0
 
@@ -531,7 +508,28 @@ if __name__ == "__main__":
             ret.append(np.concatenate(([1], x, x_square)))
         return np.stack(ret, axis=0)
 
-    from datetime import datetime  # 导入 datetime 模块
+    def net_builder(device=device):
+        # Deep Neural Network
+        # net = MyNet(env.observation_size, env.action_space_size, model_config, device=device)
+        net = MLPNet(env.observation_size, env.action_space_size, model_config, device=device)
+        net = ModelTrainer(
+            env.observation_size, env.action_space_size, net, model_training_config
+        )
+
+        # Numpy Linear Model
+        # net = NumpyLinearModel(env.observation_size, env.action_space_size, model_config, device=device, base_function=None)
+        # net = NumpyLinearModelTrainer(env.observation_size, env.action_space_size, net, model_training_config)
+        return net
+
+    # 动态获取网络类型
+    temp_net = net_builder()  # 调用 net_builder 获取网络实例
+    net_type = "UnknownNet"  # 默认值
+    if isinstance(temp_net.net, MyNet):
+        net_type = "MyNet"
+    elif isinstance(temp_net.net, MLPNet):
+        net_type = "MLPNet"
+    elif isinstance(temp_net.net, LinearModel):
+        net_type = "LinearModel"
 
     # 设置日志文件名，添加时间信息
     log_filename = f"log_{net_type}_{current_time}.txt"

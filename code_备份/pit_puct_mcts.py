@@ -85,12 +85,12 @@ def multi_match(game:BaseGame, player1:PUCTPlayer, player2:PUCTPlayer, n_match=1
     return (n_p1_win, n_p2_win, n_draw), first_play, latter_play
 
 if __name__ == '__main__':
-    
+
     # env = GoGame(7, obs_mode="extra_feature") # "extra_feature" only compatible with MynetModel, LinearModel, MLPNet
     env = GoGame(7)
-    
+
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    
+
     MLP_mcts_config = PUCTMCTSConfig(
         n_search=240, 
         temperature=1.0, 
@@ -99,14 +99,12 @@ if __name__ == '__main__':
     MLP_model_config = BaseNetConfig(
         linear_hidden=[256, 128]
     )
-    
+
     MLP_net = MLPNet(env.observation_size, env.action_space_size, MLP_model_config, device=device)
     MLP_net = ModelTrainer(env.observation_size, env.action_space_size, MLP_net, ModelTrainingConfig())
-    MLP_net.load_checkpoint("checkpoint/mlp_7x7_3layers_exfeat_1", "best.pth.tar")
+    MLP_net.load_checkpoint("checkpoint/net_0520_0858", "best.pth.tar")
     MLP_puct_player = PUCTPlayer(MLP_mcts_config, MLP_net, deterministic=True)
-    
-    
-    
+
     Mynet_mcts_config = PUCTMCTSConfig(
         n_search=240, 
         temperature=1.0, 
@@ -116,24 +114,24 @@ if __name__ == '__main__':
         linear_hidden=[256, 128],
         num_channels=256
     )
-    
+
     Mynet_net = MyNet(env.observation_size, env.action_space_size, Mynet_model_config, device=device)
     Mynet_net = ModelTrainer(env.observation_size, env.action_space_size, Mynet_net, ModelTrainingConfig())
     Mynet_net.load_checkpoint("checkpoint/mynet", "best.pth.tar")
     Mynet_puct_player = PUCTPlayer(Mynet_mcts_config, Mynet_net, deterministic=True)
-    
+
     player1_name = "MLP_net"
     player1 = MLP_puct_player
     player2_name = "My_net"
     player2 = Mynet_puct_player
-    
+
     n_match = 30
-    
+
     results, first_play_results, second_play_results = \
         multi_match(env, player1, player2, n_match)
-    
+
     n_p1_win, n_p2_win, n_draw = results
-    
+
     print(f"Player 1 ({player1_name}) win: {n_p1_win} ({n_p1_win/n_match*100:.2f}%)")
     print(f"Player 2 ({player2_name}) win: {n_p2_win} ({n_p2_win/n_match*100:.2f}%)")
     print(f"Draw: {n_draw} ({n_draw/n_match*100:.2f}%)")
